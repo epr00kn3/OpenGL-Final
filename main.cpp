@@ -1,17 +1,4 @@
-#include <iostream>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <stb_image.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include"texture.h"
-#include"shaderClass.h"
-#include"VAO.h"
-#include"VBO.h"
-#include"EBO.h"
-#include "Camera.h"
+#include "Mesh.h"
 
 
 //Ancho y altura de la ventana
@@ -19,13 +6,12 @@ const unsigned int width = 800;
 const unsigned int height = 800;
 
 // Vertices coordinates
-//Plano
-GLfloat vertices[] =
-{ //     COORDINATES     /        COLORS        /    TexCoord    /       NORMALS     //
-	-1.0f, 0.0f,  1.0f,		0.0f, 0.0f, 0.0f,		0.0f, 0.0f,		0.0f, 1.0f, 0.0f,
-	-1.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0.0f,		0.0f, 1.0f,		0.0f, 1.0f, 0.0f,
-	 1.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0.0f,		1.0f, 1.0f,		0.0f, 1.0f, 0.0f,
-	 1.0f, 0.0f,  1.0f,		0.0f, 0.0f, 0.0f,		1.0f, 0.0f,		0.0f, 1.0f, 0.0f
+Vertex vertices[] =
+{ //               COORDINATES           /            COLORS          /           NORMALS         /       TEXTURE COORDINATES    //
+	Vertex{ glm::vec3(-1.0f, 0.0f,  1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(0.0f, 0.0f) },
+	Vertex{ glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(0.0f, 1.0f) },
+	Vertex{ glm::vec3(1.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(1.0f, 1.0f) },
+	Vertex{ glm::vec3(1.0f, 0.0f,  1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(1.0f, 0.0f) }
 };
 
 // Indices for vertices order
@@ -36,16 +22,16 @@ GLuint indices[] =
 };
 
 //Cubo que sirve como fuente de luz
-GLfloat lightVertices[] =
+Vertex lightVertices[] =
 { //     COORDINATES     //
-	-0.1f, -0.1f,  0.1f,
-	-0.1f, -0.1f, -0.1f,
-	 0.1f, -0.1f, -0.1f,
-	 0.1f, -0.1f,  0.1f,
-	-0.1f,  0.1f,  0.1f,
-	-0.1f,  0.1f, -0.1f,
-	 0.1f,  0.1f, -0.1f,
-	 0.1f,  0.1f,  0.1f
+	Vertex{ glm::vec3(-0.1f, -0.1f,  0.1f) },
+	Vertex{ glm::vec3(-0.1f, -0.1f, -0.1f) },
+	Vertex{ glm::vec3(0.1f, -0.1f, -0.1f) },
+	Vertex{ glm::vec3(0.1f, -0.1f,  0.1f) },
+	Vertex{ glm::vec3(-0.1f,  0.1f,  0.1f) },
+	Vertex{ glm::vec3(-0.1f,  0.1f, -0.1f) },
+	Vertex{ glm::vec3(0.1f,  0.1f, -0.1f) },
+	Vertex{ glm::vec3(0.1f,  0.1f,  0.1f) }
 };
 
 GLuint lightIndices[] =
@@ -92,46 +78,30 @@ int main() {
 	//Se le dice el área de la ventana a OpenGL en la que se quiere renderizar
 	glViewport(0, 0, width, height);
 
+	// Texture data
+	Texture textures[]
+	{
+		Texture(("brick_diffuse.jpg"), "diffuse", 0, GL_RGBA, GL_UNSIGNED_BYTE),
+		Texture(("brick_specular.png"), "specular", 1, GL_RED, GL_UNSIGNED_BYTE)
+	};
 
 	// Generates Shader object using shaders defualt.vert and default.frag
 	Shader shaderProgram("default.vert", "default.frag");
 
-	// Generates Vertex Array Object and binds it
-	VAO VAO1;
-	VAO1.Bind();
-
-	// Generates Vertex Buffer Object and links it to vertices
-	VBO VBO1(vertices, sizeof(vertices));
-	// Generates Element Buffer Object and links it to indices
-	EBO EBO1(indices, sizeof(indices));
-
-	// Links VBO to VAO
-	VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 11 * sizeof(float), (void*)0);
-	VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 11 * sizeof(float), (void*)(3 * sizeof(float)));
-	VAO1.LinkAttrib(VBO1, 2, 2, GL_FLOAT, 11 * sizeof(float), (void*)(6 * sizeof(float)));
-	VAO1.LinkAttrib(VBO1, 3, 3, GL_FLOAT, 11 * sizeof(float), (void*)(8 * sizeof(float)));
-
-	// Unbind all to prevent accidentally modifying them
-	VAO1.Unbind();
-	VBO1.Unbind();
-	EBO1.Unbind();
+	// Almacena los datos de la malla en vectores para la malla
+	std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
+	std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
+	std::vector <Texture> tex(textures, textures + sizeof(textures) / sizeof(Texture));
+	//Crear malla
+	Mesh floor(verts, ind, tex);
 
 	// LUZ ------
 	// Shader for light cube
 	Shader lightShader("light.vert", "light.frag");
-	// Generates Vertex Array Object and binds it
-	VAO lightVAO;
-	lightVAO.Bind();
-	// Generates Vertex Buffer Object and links it to vertices
-	VBO lightVBO(lightVertices, sizeof(lightVertices));
-	// Generates Element Buffer Object and links it to indices
-	EBO lightEBO(lightIndices, sizeof(lightIndices));
-	// Links VBO attributes such as coordinates and colors to VAO
-	lightVAO.LinkAttrib(lightVBO, 0, 3, GL_FLOAT, 3 * sizeof(float), (void*)0);
-	// Unbind all to prevent accidentally modifying them
-	lightVAO.Unbind();
-	lightVBO.Unbind();
-	lightEBO.Unbind();
+	std::vector <Vertex> lightVerts(lightVertices, lightVertices + sizeof(lightVertices) / sizeof(Vertex));
+	std::vector <GLuint> lightInd(lightIndices, lightIndices + sizeof(lightIndices) / sizeof(GLuint));
+	Mesh light(lightVerts, lightInd, tex);
+
 
 	glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	glm::vec3 lightPos = glm::vec3(0.5f, 0.5f, 0.5f);
@@ -154,13 +124,6 @@ int main() {
 	glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
 
 	//------
-
-	// TEXTURAS
-	Texture image1("brick_diffuse.jpg", GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE);
-	image1.texUnit(shaderProgram, "tex0", 0);
-	//importar el specular map
-	Texture specularMap("brick_specular.png", GL_TEXTURE_2D, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-	specularMap.texUnit(shaderProgram, "tex1", 1);
 
 	//Temporizador
 	float rotation = 0.0f;
@@ -191,25 +154,12 @@ int main() {
 		camera.Inputs(window);
 
 		// Actualiza y exporta la matriz de la cámara al Vertex Shader
-		camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+		camera.updateMatrix(45.0f, 0.1f, 100.0f);
 		//------
+		//Dibujo de la luz y piso
+		floor.Draw(shaderProgram, camera);
+		light.Draw(lightShader, camera);
 
-		//TEXTURE
-		image1.Bind();
-		specularMap.Bind();
-		//------
-
-		// Bind the VAO so OpenGL knows to use it
-		VAO1.Bind();
-		// Draw primitives, number of indices, datatype of indices, index of indices
-		glDrawElements(GL_TRIANGLES, sizeof(indices) / sizeof(int), GL_UNSIGNED_INT, 0);
-
-		//CUBO
-		// Dibujar el cubo de luz
-		lightShader.Activate();
-		camera.Matrix(45.0f, 0.1f, 100.0f, lightShader, "camMatrix");
-		lightVAO.Bind();
-		glDrawElements(GL_TRIANGLES, sizeof(lightIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
 
 
 		//Para ver el color toca intercambiar los buffers (Bufer posterior: mi color, Bufer frontal: color predeterminado)
@@ -219,17 +169,10 @@ int main() {
 	}
 
 	// Delete all the objects we've created
-	VAO1.Delete();
-	VBO1.Delete();
-	EBO1.Delete();
-	image1.Delete();
-
-	lightVAO.Delete();
-	lightVBO.Delete();
-	lightEBO.Delete();
+	shaderProgram.Delete();
 	lightShader.Delete();
 
-	shaderProgram.Delete();
+
 
 	glfwDestroyWindow(window);
 	glfwTerminate();
