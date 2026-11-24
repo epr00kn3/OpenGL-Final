@@ -11,21 +11,22 @@ Texture::Texture(const char* image, GLenum texType, GLenum slot, GLenum format, 
 	stbi_set_flip_vertically_on_load(true);
 
 	//Almacenar la imagen en una matriz de caracteres
-	unsigned char* bytes = stbi_load("entiendo.png", &widthImg, &heightImg, &numColCh, 4);
+	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 4);
 
 	//Generar objeto de textura (num texturas, puntero de referencia)
 	glGenTextures(1, &ID);
 	//Insertar textura en la ranura de una unidad de textura
-	glActiveTexture(slot);
+	glActiveTexture(GL_TEXTURE0 + slot);
+	unit = slot;
 	//Vincular textura (tipo, referencia)
-	glBindTexture(GL_TEXTURE_2D, ID);
+	glBindTexture(texType, ID);
 
 	//Ajustar configuración de textura (tipo, configuración a modificar, valor a la configuración)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+	glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(texType, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(texType, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	//Generar textura (tipo, nivel, canal, tamaño, tipo de dato de pixeles, datos imagen)
 	glTexImage2D(texType, 0, GL_RGBA, widthImg, heightImg, 0, format, pixelType, bytes);
@@ -49,6 +50,7 @@ void Texture::texUnit(Shader& shader, const char* uniform, GLuint unit)
 
 void Texture::Bind()
 {
+	glActiveTexture(GL_TEXTURE0 + unit);
 	glBindTexture(type, ID);
 }
 
