@@ -1,10 +1,10 @@
-.cpp
 #include"Texture.h"
 
-Texture::Texture(const char* image, const char* texType, GLenum slot)
+Texture::Texture(const char* image, const char* texType, GLuint slot)
 {
 	// Assigns the type of the texture ot the texture object
 	type = texType;
+	target = GL_TEXTURE_2D;
 
 	//Almacenar ancho y altura de la imagen y el numero de canales de color
 	int widthImg, heightImg, numColCh;
@@ -17,6 +17,7 @@ Texture::Texture(const char* image, const char* texType, GLenum slot)
 
 	//Generar objeto de textura (num texturas, puntero de referencia)
 	glGenTextures(1, &ID);
+
 	//Insertar textura en la ranura de una unidad de textura
 	glActiveTexture(GL_TEXTURE0 + slot);
 	unit = slot;
@@ -102,15 +103,50 @@ void Texture::texUnit(Shader& shader, const char* uniform, GLuint unit)
 	glUniform1i(texUni, unit);
 }
 
+//Cubemap
+Texture::Texture(const std::vector<std::string>& faces, const char* texType, GLuint slot)
+{
+	type = texType;
+	target = GL_TEXTURE_CUBE_MAP;
+	unit = slot;
+
+	stbi_set_flip_vertically_on_load(false);
+
+	glGenTextures(1, &ID);
+	glActiveTexture(GL_TEXTURE0 + slot);
+	glBindTexture(target, ID);
+
+	for (unsigned int i = 0; i < 6; i++)
+	{
+		int w, h, ch;
+		unsigned char* data = stbi_load(faces[i].c_str(), &w, &h, &ch, 0);
+		if (!data)
+			throw std::runtime_error("No se pudo cargar la cara: " + faces[i]);
+
+		GLenum fmt = (ch == 4) ? GL_RGBA : GL_RGB;
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
+		stbi_image_free(data);
+	}
+
+	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(target, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	glBindTexture(target, 0);
+}
+//--------
+
 void Texture::Bind()
 {
 	glActiveTexture(GL_TEXTURE0 + unit);
-	glBindTexture(GL_TEXTURE_2D, ID);
+	glBindTexture(target, ID);
 }
 
 void Texture::Unbind()
 {
-	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindTexture(target, 0);
 }
 
 void Texture::Delete()

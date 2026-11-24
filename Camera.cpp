@@ -112,4 +112,4 @@ void Camera::Inputs(GLFWwindow* window)
 		firstClick = true;
 	}
 
-}
+} 

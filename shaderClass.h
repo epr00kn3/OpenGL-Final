@@ -8,6 +8,7 @@
 #include<iostream>
 #include<cerrno>
 
+
 //Genera el contenido de un archivo de texto como una cadena de caracteres
 std::string get_file_contents(const char* filename);
 
@@ -24,5 +25,8 @@ public:
 	void Activate();
 	// Deletes the Shader Program
 	void Delete();
+
+	// Checks if the different Shaders have compiled properly
+	void compileErrors(unsigned int shader, const char* type);
 };
 #endif

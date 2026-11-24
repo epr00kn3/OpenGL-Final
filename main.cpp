@@ -2,9 +2,22 @@
 
 
 //Ancho y altura de la ventana
-const unsigned int width = 800;
+const unsigned int width = 1600;
 const unsigned int height = 800;
 
+//Curva de BEZIER
+glm::vec3 bezier(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
+{
+	float u = 1.0f - t;
+	return u * u * u * p0 + 3.0f * u * u * t * p1 + 3.0f * u * t * t * p2 + t * t * t * p3;
+}
+
+glm::vec3 bezierTangent(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
+{
+	float u = 1.0f - t;
+	return 3.0f * u * u * (p1 - p0) + 6.0f * u * t * (p2 - p1) + 3.0f * t * t * (p3 - p2);
+}
+//---
 
 //MAIN
 int main() {
@@ -38,7 +51,7 @@ int main() {
 	Shader shaderProgram("default.vert", "default.frag");
 
 	// Se ocupa de todas las cosas relacionadas con la luz
-	glm::vec4 lightColor = glm::vec4(0.357, 0.459, 0.525, 1.0f);
+	glm::vec4 lightColor = glm::vec4(1.0f, 0.62f, 0.32f, 1.0f);
 	glm::vec3 lightPos = glm::vec3(0.0f, 5.0f, 5.0f);
 	glm::mat4 lightModel = glm::mat4(1.0f);
 	lightModel = glm::translate(lightModel, lightPos);
@@ -47,28 +60,67 @@ int main() {
 	glUniform4f(glGetUniformLocation(shaderProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
 	glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
 
-
+	
 
 	//Prueba de profundidad (que triangulo va encima de cual)
 	glEnable(GL_DEPTH_TEST);
 
-	//Crear objeto camara
-	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
+	//Crear objeto camara y su posicion
+	Camera camera(width, height, glm::vec3(0.0f, 3.0f, 4.0f));
 
 	//MODELO
 	Model boat("Models/boat_fishing/scene.gltf");
 
 
-	//Fondo de degradado
-	Shader bgShader("bg.vert", "bg.frag");
-	VAO bgVAO;   // VAO vacío, necesario en perfil core
-	bgShader.Activate();
-	glUniform3f(glGetUniformLocation(bgShader.ID, "topColor"), 0.153, 0.271, 0.365f);
-	glUniform3f(glGetUniformLocation(bgShader.ID, "bottomColor"), 0.031, 0.090, 0.133);
+	//CUBEMAP
+	Shader skyboxShader("cm.vert", "cm.frag");
+
+	// Orden de caras (+X, -X, +Y, -Y, +Z, -Z)
+	Texture skybox({
+		"cubemap/right.jpg",
+		"cubemap/left.jpg",
+		"cubemap/top.jpg",
+		"cubemap/bottom.jpg",
+		"cubemap/front.jpg",
+		"cubemap/back.jpg"
+		}, "cubemap", 5);
+	skybox.texUnit(skyboxShader, "cubemap", 5);
+
+	// Cubo del skybox 
+	std::vector<Vertex> skyboxVerts =
+	{
+		Vertex{ glm::vec3(-1.0f, -1.0f,  1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(1.0f, -1.0f,  1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(1.0f, -1.0f, -1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(-1.0f,  1.0f,  1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(1.0f,  1.0f,  1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(1.0f,  1.0f, -1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) },
+		Vertex{ glm::vec3(-1.0f,  1.0f, -1.0f), glm::vec3(0), glm::vec3(0), glm::vec2(0) }
+	};
+	std::vector<GLuint> skyboxIndices =
+	{
+		1,2,6, 6,5,1,   // derecha
+		0,4,7, 7,3,0,   // izquierda
+		4,5,6, 6,7,4,   // arriba
+		0,3,2, 2,1,0,   // abajo
+		0,1,5, 5,4,0,   // atrás
+		3,7,6, 6,2,3    // frente
+	};
+
+	VAO skyboxVAO;
+	skyboxVAO.Bind();
+	VBO skyboxVBO(skyboxVerts);
+	EBO skyboxEBO(skyboxIndices);
+	skyboxVAO.LinkAttrib(skyboxVBO, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
+	skyboxVAO.Unbind();
+	skyboxVBO.Unbind();
+	skyboxEBO.Unbind();
 	//------
 
 	//AGUA wazaaaaaaaaaa
 	Shader waterShader("water.vert", "water.frag");
+	skybox.texUnit(waterShader, "skybox", 5);
 
 	std::vector<Vertex> waterVerts =
 	{
@@ -82,9 +134,30 @@ int main() {
 	Mesh water(waterVerts, waterIndices, noTextures);
 
 	// altura del agua
-	float waterLevel = 1.5f;
+	float waterLevel = 1.5f;  
 	glm::mat4 waterModel = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, waterLevel, 0.0f));
 	//------
+
+	//Curva de BEZIER
+	// Tramo A (P0 - P3)
+	glm::vec3 P0(-20.0f, 0.0f, 0.0f);
+	glm::vec3 P1(-20.0f, 0.0f, -25.0f);
+	glm::vec3 P2(20.0f, 0.0f, -25.0f);
+	glm::vec3 P3(20.0f, 0.0f, 0.0f);
+	// Tramo B (P3 - P0)
+	glm::vec3 P4 = 2.0f * P3 - P2;
+	glm::vec3 P5 = 2.0f * P0 - P1;
+
+	//segundos por tramo
+	float segmentDuration = 8.0f;  
+	// qué tan hundido esta el barco (- baja, + sube)
+	float boatY = waterLevel - 1.0f;    
+	// si el barco va de lado probar glm::radians(90.0f), -90 o 180
+	float headingOffset = 0.0f;     
+	//------
+
+
+
 
 
 	//Ciclo while que termina solo cuando la ventana se cierra (pulsar botón de cierre)
@@ -93,17 +166,7 @@ int main() {
 		//Borrar el color de un bufer y darle otro color, tambien para el test de profundidad
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-		//Fondo degradado wazaaaa
-		glDisable(GL_DEPTH_TEST);
-		bgShader.Activate();
-		bgVAO.Bind();
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glEnable(GL_DEPTH_TEST);
-
-
-
+		
 		// Tell OpenGL which Shader Program we want to use
 		shaderProgram.Activate();
 
@@ -117,9 +180,52 @@ int main() {
 
 		// Actualiza y exporta la matriz de la cámara al Vertex Shader
 		camera.updateMatrix(45.0f, 0.1f, 100.0f);
+		
+		//CUBEMAP
+		glDisable(GL_DEPTH_TEST);
+		skyboxShader.Activate();
+		glm::mat4 view = glm::mat4(glm::mat3(glm::lookAt(camera.Position, camera.Position + camera.Orientation, camera.Up)));
+		glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
+		glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+		skybox.Bind();
+		skyboxVAO.Bind();
+		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+		skyboxVAO.Unbind();
+		skybox.Unbind();
+
+		glEnable(GL_DEPTH_TEST);
+		//-------
+
+		//Curva de BEZIER
+		float time = (float)glfwGetTime();
+		float tt = fmod(time / segmentDuration, 2.0f);   // 0..2: [0,1) tramo A, [1,2) tramo B
+
+		glm::vec3 pos, tangent;
+		if (tt < 1.0f)
+		{
+			pos = bezier(P0, P1, P2, P3, tt);
+			tangent = bezierTangent(P0, P1, P2, P3, tt);
+		}
+		else
+		{
+			float u = tt - 1.0f;
+			pos = bezier(P3, P4, P5, P0, u);
+			tangent = bezierTangent(P3, P4, P5, P0, u);
+		}
+
+		// Orientación: giro en Y para que el frente del barco (+Z) apunte a la tangente
+		float yaw = atan2(tangent.x, tangent.z) + headingOffset;
+		float bob = 0.1f * sin(time * 1.5f);             // sube y baja con las olas
+
+		glm::mat4 boatMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(pos.x, boatY + bob, pos.z));
+		boatMatrix = glm::rotate(boatMatrix, yaw, glm::vec3(0.0f, 1.0f, 0.0f));
+
 
 		//Dibujar MODELO
-		boat.Draw(shaderProgram, camera);
+
+		boat.Draw(shaderProgram, camera, boatMatrix);
 
 		//AGUA wazaaaa
 		glEnable(GL_BLEND);
@@ -128,9 +234,11 @@ int main() {
 		waterShader.Activate();
 		glUniform1f(glGetUniformLocation(waterShader.ID, "time"), (float)glfwGetTime());
 		glUniform3f(glGetUniformLocation(waterShader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-		glm::vec3 lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.8f));
+		glm::vec3 lightDir = glm::normalize(glm::vec3(1.0f, 0.26f, 0.0f));
 		glUniform3f(glGetUniformLocation(waterShader.ID, "lightDir"), lightDir.x, lightDir.y, lightDir.z);
+		skybox.Bind();
 		water.Draw(waterShader, camera, waterModel);
+		skybox.Unbind();
 
 		glDisable(GL_BLEND);
 		//-----
@@ -145,8 +253,11 @@ int main() {
 
 	// Delete all the objects we've created
 	shaderProgram.Delete();
-	bgShader.Delete();
-	bgVAO.Delete();
+	skyboxShader.Delete();
+	skybox.Delete();
+	skyboxVAO.Delete();
+	skyboxVBO.Delete();
+	skyboxEBO.Delete();
 	waterShader.Delete();
 	glfwDestroyWindow(window);
 	glfwTerminate();

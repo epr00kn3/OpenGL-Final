@@ -10,6 +10,7 @@ VAO::VAO()
 void VAO::LinkAttrib(VBO& VBO, GLuint layout, GLuint numComponents, GLenum type, GLsizeiptr stride, void* offset)
 {
 	VBO.Bind();
+	//Ubicación(0 o 1) - Numero de componentes por diseño (3) - tipo de componente - pasos - desplazamiento
 	glVertexAttribPointer(layout, numComponents, type, GL_FALSE, stride, offset);
 	glEnableVertexAttribArray(layout);
 	VBO.Unbind();

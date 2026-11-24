@@ -35,7 +35,7 @@ void Mesh::Draw
 	glm::vec3 translation,
 	glm::quat rotation,
 	glm::vec3 scale
-)
+	)
 {
 	// Vincula el shader para poder acceder a los uniformes
 	shader.Activate();

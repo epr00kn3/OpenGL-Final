@@ -13,7 +13,7 @@ public:
 	Model(const char* file);
 
 	//Funcion de dibujo que recibe como parámetro un sombreador y una cámara
-	void Draw(Shader& shader, Camera& camera);
+	void Draw(Shader& shader, Camera& camera, glm::mat4 modelMatrix = glm::mat4(1.0f));
 
 
 private:
